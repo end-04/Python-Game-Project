@@ -137,27 +137,55 @@ class Enemy(PhysicsEntity):
             surf.blit(self.game.assets['gun'], (self.rect().centerx + 4 - offset[0], self.rect().centery - offset[1]))
 
 class Player(PhysicsEntity):
+    ACCEL = 0.4
+    DECEL = 0.3
+    MAX_SPEED = 1.5
+
     def __init__(self, game, pos, size):
         super().__init__(game, 'player', pos, size)
         self.air_time = 0
         self.jumps = 1
         self.wall_slide = False
         self.dashing = 0
-    
+
     def update(self, tilemap, movement=(0, 0)):
-        super().update(tilemap, movement=movement)
-        
+        # Apply acceleration-based horizontal movement (skip during dash)
+        if abs(self.dashing) <= 50:
+            if movement[0] != 0:
+                # Accelerate toward target speed
+                target = movement[0] * self.MAX_SPEED
+                if movement[0] > 0:
+                    self.velocity[0] = min(self.velocity[0] + self.ACCEL, target)
+                else:
+                    self.velocity[0] = max(self.velocity[0] - self.ACCEL, target)
+            else:
+                # Decelerate to stop
+                if self.velocity[0] > 0:
+                    self.velocity[0] = max(self.velocity[0] - self.DECEL, 0)
+                elif self.velocity[0] < 0:
+                    self.velocity[0] = min(self.velocity[0] + self.DECEL, 0)
+
+        # Pass (0,0) as movement since velocity now handles horizontal motion
+        super().update(tilemap, movement=(0, 0))
+
+        # Set flip and last_movement from actual input (parent got (0,0))
+        if movement[0] > 0:
+            self.flip = False
+        if movement[0] < 0:
+            self.flip = True
+        self.last_movement = movement
+
         self.air_time += 1
-        
+
         if self.air_time > 120:
             if not self.game.dead:
                 self.game.screenshake = max(16, self.game.screenshake)
             self.game.dead += 1
-        
+
         if self.collisions['down']:
             self.air_time = 0
             self.jumps = 1
-            
+
         self.wall_slide = False
         if (self.collisions['right'] or self.collisions['left']) and self.air_time > 4:
             self.wall_slide = True
@@ -167,7 +195,7 @@ class Player(PhysicsEntity):
             else:
                 self.flip = True
             self.set_action('wall_slide')
-        
+
         if not self.wall_slide:
             if self.air_time > 4:
                 self.set_action('jump')
@@ -175,7 +203,7 @@ class Player(PhysicsEntity):
                 self.set_action('run')
             else:
                 self.set_action('idle')
-        
+
         if abs(self.dashing) in {60, 50}:
             for i in range(20):
                 angle = random.random() * math.pi * 2
@@ -192,11 +220,6 @@ class Player(PhysicsEntity):
                 self.velocity[0] *= 0.1
             pvelocity = [abs(self.dashing) / self.dashing * random.random() * 3, 0]
             self.game.particles.append(Particle(self.game, 'particle', self.rect().center, velocity=pvelocity, frame=random.randint(0, 7)))
-                
-        if self.velocity[0] > 0:
-            self.velocity[0] = max(self.velocity[0] - 0.1, 0)
-        else:
-            self.velocity[0] = min(self.velocity[0] + 0.1, 0)
     
     def render(self, surf, offset=(0, 0)):
         if abs(self.dashing) <= 50:
