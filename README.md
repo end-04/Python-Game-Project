@@ -31,7 +31,7 @@ python game.py
 
 ### From Executable
 
-Run `dist/game/game.exe`. The `data/` folder must be in the same directory as the executable.
+Run `dist/game/game.exe`. The `data/`and `scripts/' folder must be in the same directory as the executable.
 
 ## Building the Executable
 
